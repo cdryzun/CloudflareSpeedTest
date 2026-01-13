@@ -150,6 +150,111 @@
 
 ****
 
+## 📑 cfst_ddns_multi.sh
+
+如果你的域名托管在 **Cloudflare**，想要为一个域名添加多个优选 IP（DNS 负载均衡），可以使用此脚本！
+脚本会运行 CFST 测速获得最快的 N 个 IP（默认 10 个），并通过 Cloudflare API 将这些 IP 全部添加为 DNS A 记录。
+
+> **作者：**[@XIU2](https://github.com/xiu2)
+> **适用场景：**
+> - **DNS 负载均衡** - 让多个优选 IP 轮询响应，分散流量
+> - **高可用性** - 单个 IP 失效时自动使用备用 IP
+> - **性能优化** - 避免单个 IP 过载，提升访问速度
+
+> **注意事项：**
+> - 建议设置 `PROXIED=false`（仅 DNS 模式），以实现真正的负载均衡
+> - 如需高级负载均衡功能（健康检查、地理位置路由），请考虑 Cloudflare Load Balancer 产品
+
+<details>
+<summary><code><strong>「 使用说明」</strong></code></summary>
+
+****
+
+### 配置步骤
+
+1. **复制配置文件模板**
+   ```bash
+   cd script
+   cp cfst_ddns_multi.conf.example cfst_ddns_multi.conf
+   ```
+
+2. **编辑配置文件**
+   ```bash
+   nano cfst_ddns_multi.conf
+   ```
+
+   **必填配置项：**
+   - `FOLDER` - CFST 程序所在目录的绝对路径
+   - `KEY` - Cloudflare API Token 或 API Key
+   - `NAME` - 要更新的完整域名（如 cdn.example.com）
+   - `TYPE` - DNS 记录类型（A 或 AAAA）
+   - `TTL` - TTL 值（1 表示自动，或 120-86400）
+   - `PROXIED` - 是否启用 CDN 代理（true/false，建议 false）
+
+   **选填配置项：**
+   - `ZONE_ID` - Cloudflare Zone ID（留空则自动获取）
+   - `EMAIL` - Cloudflare 邮箱（使用旧 API Key 方式时需要）
+   - `IP_COUNT` - IP 记录数量（默认 10，范围 1-100）
+   - `CFST_PARAMS` - CFST 运行参数（如 `-n 200 -t 4`）
+
+3. **获取 Cloudflare API Token**
+   - 访问：https://dash.cloudflare.com/profile/api-tokens
+   - 点击「Create Token」
+   - 选择「Edit zone DNS」模板或自定义权限
+   - 所需权限：Zone.DNS (编辑) + Zone.Zone (读取)
+   - 复制生成的 Token 到配置文件的 `KEY` 项
+
+4. **运行脚本**
+   ```bash
+   ./cfst_ddns_multi.sh
+   ```
+
+5. **设置定时任务（可选）**
+   ```bash
+   crontab -e
+   # 每 6 小时自动更新一次
+   0 */6 * * * /path/to/script/cfst_ddns_multi.sh >> /var/log/cfst_multi.log 2>&1
+   ```
+
+### 脚本工作流程
+
+1. 读取并验证配置文件
+2. 运行 CFST 测速，获取最快的 N 个 IP
+3. 自动获取或验证 Cloudflare Zone ID
+4. 列出域名的所有现有 A 记录
+5. 删除所有现有 A 记录
+6. 为每个优选 IP 创建新的 A 记录
+7. 验证记录创建成功并输出报告
+
+### 与 cfst_ddns.sh 的区别
+
+| 特性 | cfst_ddns.sh | cfst_ddns_multi.sh |
+|------|--------------|-------------------|
+| **IP 数量** | 单个 IP | 多个 IP（可配置） |
+| **操作方式** | PUT 更新 | DELETE + CREATE |
+| **Zone ID** | 必须手动配置 | 自动获取（可选手动） |
+| **适用场景** | CDN 代理（橙色云） | DNS 负载均衡 |
+| **DNS 记录** | 更新单条记录 | 替换所有记录 |
+
+</details>
+
+<details>
+<summary><code><strong>「 更新日志」</strong></code></summary>
+
+****
+
+#### 2026年01月13日，版本 v1.0.0
+ - **1. 发布** 第一个版本
+ - **2. 新增** 多 IP DNS 负载均衡功能
+ - **3. 新增** 自动 Zone ID 获取功能
+ - **4. 新增** API 速率限制处理和重试机制
+ - **5. 新增** IP 格式验证和去重
+ - **6. 新增** 并发执行锁机制
+
+</details>
+
+****
+
 ## 📑 cfst_dnsmasq.sh
 
 脚本会运行 CFST 测速后获取最快 IP 并替换 dnsmasq 配置文件中的旧 Cloudflare CDN IP。  

@@ -1,0 +1,65 @@
+# --------------------------------------------------------------
+#	CloudflareSpeedTest 多 IP 自动更新域名解析记录 - 配置文件
+#	版本: 1.0.3
+#	作者: cdryzun
+#	项目: https://github.com/cdryzun/CloudflareSpeedTest
+# --------------------------------------------------------------
+# 注意：此配置文件用于同时更新多个 IP 到一个域名（DNS 负载均衡）
+# 与 cfst_ddns.conf 的区别：
+#   - cfst_ddns.conf: 单个 IP，适合开启 CDN 代理
+#   - cfst_ddns_multi.conf: 多个 IP，适合 DNS 负载均衡（建议 PROXIED=false）
+
+# CFST 程序所在目录的绝对路径（选填，留空则自动检测或下载）
+# 例如：/root/CloudflareSpeedTest
+# 如果留空，脚本会自动搜索或下载 CFST
+FOLDER=
+
+# CFST 版本号（选填，默认 v2.3.4）
+# 仅在自动下载时使用，如果 FOLDER 已指定则忽略此项
+# 例如：v2.3.4, v2.3.3
+CFST_VERSION=
+
+# Cloudflare 域名区域 ID（选填，留空则自动获取）
+# 如果留空，脚本会根据 NAME 自动查询对应的 Zone ID
+# 获取方法：https://developers.cloudflare.com/fundamentals/setup/find-account-and-zone-ids/
+ZONE_ID=
+
+# Cloudflare API 密钥或令牌（必填）
+# 推荐使用 API 令牌方式（仅需填写 KEY，留空 EMAIL）
+# 获取方法：https://dash.cloudflare.com/profile/api-tokens
+# 所需权限：Zone.DNS (编辑)、Zone.Zone (读取)
+KEY=
+
+# Cloudflare 账户邮箱（选填）
+# 如使用旧的 API 密钥方式，需要同时填写 EMAIL 和 KEY
+# 如使用 API 令牌方式（推荐），留空即可
+EMAIL=
+
+# 要更新的完整域名（必填）
+# 例如：cdn.example.com 或 example.com
+NAME=
+
+# DNS 记录类型（必填）
+# A = IPv4，AAAA = IPv6
+TYPE=A
+
+# DNS 记录的 TTL 值（必填）
+# 范围：120-86400（秒），1 表示自动
+TTL=1
+
+# 是否启用 Cloudflare CDN 代理（必填）
+# true = 启用橙色云（CDN+安全功能）
+# false = 仅 DNS 解析（推荐，实现真正的负载均衡）
+# 注意：如果启用多个 IP 的 CDN 代理，Cloudflare 不会提供主动健康检查
+#      如需高级负载均衡功能，请考虑使用 Cloudflare Load Balancer 产品
+PROXIED=false
+
+# 要创建的 IP 记录数量（选填，默认 10）
+# 范围：1-100
+# 脚本会从 CFST 测速结果中选取最快的 N 个 IP
+IP_COUNT=10
+
+# CFST 运行参数（选填）
+# 例如：-n 200 -t 4 -dn 5
+# 留空则使用 CFST 的默认参数
+CFST_PARAMS=

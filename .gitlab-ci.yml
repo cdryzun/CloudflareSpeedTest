@@ -1,0 +1,123 @@
+# CloudflareSpeedTest 自动 DNS 更新 - GitLab CI 配置
+# 用途：每两小时自动测速并更新 Cloudflare DNS 记录
+
+# 定义阶段
+stages:
+  - update-dns
+
+# 全局变量（可在 GitLab CI/CD Settings > Variables 中覆盖）
+variables:
+  # CFST 配置
+  CFST_VERSION: "v2.3.4"
+  TYPE: "A"
+  TTL: "60"
+  PROXIED: "false"
+  IP_COUNT: "10"
+  CFST_PARAMS: ""
+
+  # 日志级别
+  LOG_LEVEL: "info"
+
+# DNS 更新任务
+update-cloudflare-dns:
+  stage: update-dns
+  image: ubuntu:22.04
+
+  # 仅在定时任务或手动触发时运行
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - when: manual
+
+  # 超时设置（30分钟）
+  timeout: 30m
+
+  # 允许失败（不阻塞后续任务）
+  allow_failure: false
+
+  before_script:
+    - echo "========================================"
+    - echo "CloudflareSpeedTest DNS 自动更新"
+    - echo "时间：$(date '+%Y-%m-%d %H:%M:%S')"
+    - echo "========================================"
+
+    # 安装依赖
+    - apt-get update -qq
+    - apt-get install -y wget curl jq tar
+
+    # 显示配置信息（隐藏敏感信息）
+    - echo "域名：${NAME}"
+    - echo "记录类型：${TYPE}"
+    - echo "TTL：${TTL}"
+    - echo "CDN代理：${PROXIED}"
+    - echo "IP数量：${IP_COUNT}"
+    - echo "CFST版本：${CFST_VERSION}"
+
+  script:
+    # 进入脚本目录
+    - cd script
+
+    # 赋予执行权限
+    - chmod +x cfst_ddns_multi.sh
+
+    # 运行脚本（使用环境变量）
+    - |
+      if [ -z "${KEY}" ]; then
+        echo "错误：未设置 KEY 环境变量"
+        echo "请在 GitLab CI/CD Settings > Variables 中设置以下变量："
+        echo "  - KEY: Cloudflare API Token (Protected)"
+        echo "  - NAME: 域名"
+        exit 1
+      fi
+
+    - |
+      if [ -z "${NAME}" ]; then
+        echo "错误：未设置 NAME 环境变量"
+        exit 1
+      fi
+
+    # 执行更新脚本
+    - ./cfst_ddns_multi.sh 2>&1 | tee ../dns_update.log
+
+  after_script:
+    - echo "========================================"
+    - echo "任务完成时间：$(date '+%Y-%m-%d %H:%M:%S')"
+    - echo "========================================"
+
+  # 保存结果文件为 artifacts
+  artifacts:
+    name: "dns-update-${CI_COMMIT_SHORT_SHA}-${CI_PIPELINE_ID}"
+    paths:
+      - dns_update.log
+      - result_ddns_multi.csv
+    expire_in: 7 days
+    when: always
+
+  # 任务重试配置
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# 可选：测试任务（手动触发）
+test-configuration:
+  stage: update-dns
+  image: ubuntu:22.04
+
+  rules:
+    - when: manual
+    
+  script:
+    - |
+      echo "测试配置..."
+      echo "KEY: $(if [ -n "${KEY}" ]; then echo '已设置 ✓'; else echo '未设置 ✗'; fi)"
+      echo "NAME: ${NAME:-未设置 ✗}"
+      echo "TYPE: ${TYPE:-A}"
+      echo "TTL: ${TTL:-1}"
+      echo "PROXIED: ${PROXIED:-false}"
+      echo "IP_COUNT: ${IP_COUNT:-10}"
+      echo ""
+      echo "如果上述配置正确，可以运行 update-cloudflare-dns 任务"
